@@ -6,22 +6,14 @@ import Accounts from './pages/Accounts';
 import Strategy from './pages/Strategy';
 import Publish from './pages/Publish';
 import Gallery from './pages/Gallery';
-import AuthPage from './pages/AuthPage'; // New Auth Page
 import { Key, Save, Globe, Shield, Trash2, Bell, Smartphone, Monitor, CheckCircle2, Circle, Cpu, Sparkles, Brain, Bot, Plus, X, Eye, EyeOff, Zap, Palette, Terminal, Loader2, LogOut } from 'lucide-react';
 import { AIProvider } from './types';
-import { auth } from './services/firebase';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
-import { saveUserSettings, getUserSettings } from './services/dbService';
 
 const App: React.FC = () => {
-  // Auth State
-  const [user, setUser] = useState<User | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
-
   // App State
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Settings State - Multi Provider
+  // Settings State - Local Storage Only (No Firebase Auth)
   const [activeProvider, setActiveProvider] = useState<AIProvider>('GOOGLE');
   const [apiKeys, setApiKeys] = useState<Record<AIProvider, string>>({
     GOOGLE: '',
@@ -38,25 +30,26 @@ const App: React.FC = () => {
   const [showTempKey, setShowTempKey] = useState(false);
   const [defaultPlatform, setDefaultPlatform] = useState('TIKTOK');
   
-  // 1. Listen for Auth Changes
+  // Initialize from LocalStorage
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      if (currentUser) {
-        // User is logged in, fetch settings from Firestore
-        const settings = await getUserSettings(currentUser.uid);
-        if (settings) {
-          if (settings.apiKeys) setApiKeys(prev => ({ ...prev, ...settings.apiKeys }));
-          if (settings.activeProvider) setActiveProvider(settings.activeProvider);
-          if (settings.defaultPlatform) setDefaultPlatform(settings.defaultPlatform);
-          
-          // Sync to localStorage for fallback/libraries that expect it synchronously
-          if (settings.apiKeys.GOOGLE) localStorage.setItem('gemini_api_key', settings.apiKeys.GOOGLE);
-        }
-      }
-      setAuthLoading(false);
-    });
-    return () => unsubscribe();
+    const storedKeys = localStorage.getItem('ai_api_keys');
+    if (storedKeys) {
+        try {
+            setApiKeys(JSON.parse(storedKeys));
+        } catch (e) { console.error("Error parsing keys", e); }
+    }
+    
+    // Legacy support for single gemini key
+    const legacyGemini = localStorage.getItem('gemini_api_key');
+    if (legacyGemini) {
+        setApiKeys(prev => ({ ...prev, GOOGLE: legacyGemini }));
+    }
+
+    const storedProvider = localStorage.getItem('active_provider');
+    if (storedProvider) setActiveProvider(storedProvider as AIProvider);
+
+    const storedPlatform = localStorage.getItem('default_platform');
+    if (storedPlatform) setDefaultPlatform(storedPlatform);
   }, []);
 
   // Auto-detect provider based on key prefix
@@ -74,32 +67,25 @@ const App: React.FC = () => {
     } else if (trimmed.startsWith('xai-')) {
         setDetectedProvider('GROK');
     } else if (trimmed.startsWith('sk-')) {
-        // Ambiguous: Could be OpenAI, DeepSeek, etc. Default to OpenAI but allow user change.
         if (detectedProvider !== 'DEEPSEEK' && detectedProvider !== 'OPENART') { 
             setDetectedProvider('OPENAI');
         }
     } else {
-        // Fallback or unknown
         if (!detectedProvider) setDetectedProvider('GOOGLE');
     }
   }, [tempKey]);
 
-  // Handle saving keys (Now saves to Firestore if logged in)
-  const handleAddKey = async () => {
+  // Handle saving keys
+  const handleAddKey = () => {
       if (!tempKey || !detectedProvider) return;
       
       const newKeys = { ...apiKeys, [detectedProvider]: tempKey.trim() };
       setApiKeys(newKeys);
       
-      // Local Storage Fallback
+      // Save to Local Storage
       localStorage.setItem('ai_api_keys', JSON.stringify(newKeys));
       if (detectedProvider === 'GOOGLE') {
           localStorage.setItem('gemini_api_key', tempKey.trim());
-      }
-
-      // Firestore Sync
-      if (user) {
-        await saveUserSettings(user.uid, { apiKeys: newKeys });
       }
       
       // Reset input
@@ -108,7 +94,7 @@ const App: React.FC = () => {
       alert(`Successfully connected ${detectedProvider} API!`);
   };
 
-  const handleRemoveKey = async (provider: AIProvider) => {
+  const handleRemoveKey = (provider: AIProvider) => {
       if(!confirm(`Remove ${provider} API Key?`)) return;
       
       const newKeys = { ...apiKeys, [provider]: '' };
@@ -117,49 +103,13 @@ const App: React.FC = () => {
       
       if (provider === 'GOOGLE') localStorage.removeItem('gemini_api_key');
       if (activeProvider === provider) setActiveProvider('GOOGLE'); // Fallback
-
-      // Firestore Sync
-      if (user) {
-        await saveUserSettings(user.uid, { apiKeys: newKeys });
-      }
   };
 
-  const handleSaveGlobals = async () => {
-      if (user) {
-          await saveUserSettings(user.uid, { 
-              activeProvider, 
-              defaultPlatform 
-          });
-          alert("Global Preferences Synced to Cloud!");
-      } else {
-          localStorage.setItem('active_provider', activeProvider);
-          localStorage.setItem('default_platform', defaultPlatform);
-          alert("Preferences Saved Locally.");
-      }
+  const handleSaveGlobals = () => {
+      localStorage.setItem('active_provider', activeProvider);
+      localStorage.setItem('default_platform', defaultPlatform);
+      alert("Preferences Saved Locally.");
   };
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    setApiKeys({
-        GOOGLE: '', OPENAI: '', ANTHROPIC: '', DEEPSEEK: '', OPENART: '', GROK: ''
-    });
-    localStorage.clear();
-  };
-
-  // --- RENDERING ---
-
-  if (authLoading) {
-    return (
-      <div className="h-screen w-screen bg-dark-950 flex flex-col items-center justify-center text-brand-500 gap-4">
-        <Loader2 size={48} className="animate-spin" />
-        <p className="text-gray-400 font-mono text-sm animate-pulse">Initializing Neural Interface...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthPage onLoginSuccess={() => {}} />;
-  }
 
   const renderContent = () => {
     switch (activeTab) {
@@ -182,15 +132,6 @@ const App: React.FC = () => {
                     <div>
                         <h1 className="text-3xl font-bold text-white mb-2">System Configuration</h1>
                         <p className="text-gray-400">Manage your Neural Engine Gateways and Application Defaults.</p>
-                    </div>
-                    <div className="flex flex-col items-end">
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-brand-500/10 rounded-full border border-brand-500/20 mb-2">
-                             <div className="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></div>
-                             <span className="text-xs font-bold text-brand-400">{user.email}</span>
-                        </div>
-                        <button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1">
-                            <LogOut size={12} /> Sign Out
-                        </button>
                     </div>
                 </div>
                 
@@ -341,23 +282,17 @@ const App: React.FC = () => {
                         </div>
                         
                         <div>
-                             <label className="block text-sm font-medium text-gray-300 mb-3">Cloud Sync</label>
+                             <label className="block text-sm font-medium text-gray-300 mb-3">Local Storage</label>
                              <div className="flex gap-3">
                                  <button 
                                     onClick={handleSaveGlobals}
                                     className="flex-1 bg-dark-700 hover:bg-dark-600 text-white py-3 rounded-lg border border-dark-600 font-medium transition-colors flex items-center justify-center gap-2"
                                  >
-                                    <Save size={16} /> Save to Cloud
+                                    <Save size={16} /> Save Preferences
                                  </button>
                              </div>
                         </div>
                      </div>
-                </div>
-
-                <div className="mt-8 text-center">
-                    <p className="text-xs text-dark-500 flex items-center justify-center gap-1">
-                        <Shield size={12} /> Data is encrypted and stored safely on Firestore Cloud.
-                    </p>
                 </div>
              </div>
         );
