@@ -49,7 +49,15 @@ const cleanJSON = (text: string): string => {
   return cleaned.trim();
 };
 
+// Validate API Key presence to prevent accidental usage of dev keys or empty requests
+const validateKey = (apiKey: string) => {
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error("API Key is missing. Please configure it in Settings.");
+  }
+};
+
 export const analyzeCharacterImage = async (apiKey: string, imageBase64: string): Promise<string> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
@@ -67,7 +75,7 @@ export const analyzeCharacterImage = async (apiKey: string, imageBase64: string)
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview', // Fast vision tasks
+    model: 'gemini-3-flash-preview', // Vision Task: Use Flash for speed
     contents: {
       parts: [
         { inlineData: { mimeType: 'image/png', data: imageBase64 } },
@@ -102,6 +110,7 @@ export const generateViralIdeas = async (
   targetAge: string,
   mode: 'VIDEO' | 'IMAGE' | 'ANALYSIS' | 'IDEATION' = 'VIDEO'
 ): Promise<ScriptIdea[]> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
 
   let promptContext = "";
@@ -144,7 +153,7 @@ export const generateViralIdeas = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Upgraded to Pro for creative reasoning
+    model: 'gemini-3-pro-preview', // Reasoning Task: Use Pro for creativity
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -177,7 +186,7 @@ export const generateImagePrompt = async (
   rating: ContentRating,
   characterDesc: string,
   comfyWorkflow?: ComfyWorkflow,
-  storyFormat?: StoryFormat // Optional: If provided, triggers Story Mode
+  storyFormat?: StoryFormat
 ): Promise<{ 
     positive: string, 
     negative: string, 
@@ -185,6 +194,7 @@ export const generateImagePrompt = async (
     storyPrompts?: StoryPanel[],
     characterSheet?: string
 }> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
   
   let syntaxInstruction = "";
@@ -209,12 +219,10 @@ export const generateImagePrompt = async (
     ? `CHARACTER TOKENS (MAINTAIN VISUAL CONSISTENCY): ${characterDesc}. ALWAYS include these traits in EVERY scene prompt.`
     : "CHARACTER: No specific character provided. Create a consistent character based on the plot.";
 
-  // Dynamic Prompt Construction based on Single vs Story Mode
   let prompt = "";
   let responseSchema: any = {};
 
   if (storyFormat) {
-     // STORY MODE PROMPT
      let formatInstruction = "";
      switch(storyFormat) {
          case 'WEBTOON': formatInstruction = "Style: Digital Manhwa/Webtoon. Clean lines, cel shading, vertical composition, expressive anime faces, modern fashion."; break;
@@ -244,7 +252,7 @@ export const generateImagePrompt = async (
      responseSchema = {
         type: Type.OBJECT,
         properties: {
-          characterSheetPrompt: { type: Type.STRING, description: "Prompt for a reference sheet (Front, Side, Back view)" },
+          characterSheetPrompt: { type: Type.STRING },
           storyPanels: {
               type: Type.ARRAY,
               items: {
@@ -252,8 +260,8 @@ export const generateImagePrompt = async (
                   properties: {
                       panelNumber: { type: Type.INTEGER },
                       description: { type: Type.STRING },
-                      visualPrompt: { type: Type.STRING, description: "The raw image generation prompt" },
-                      speechBubble: { type: Type.STRING, description: "Suggested dialogue or caption text for this panel"}
+                      visualPrompt: { type: Type.STRING },
+                      speechBubble: { type: Type.STRING }
                   }
               }
           },
@@ -273,7 +281,6 @@ export const generateImagePrompt = async (
       };
 
   } else {
-      // SINGLE IMAGE PROMPT (Existing Logic)
       prompt = `
         TASK: Create a high-quality text-to-image prompt.
         SUBJECT: ${topic}
@@ -308,7 +315,7 @@ export const generateImagePrompt = async (
   }
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Upgraded to Pro
+    model: 'gemini-3-pro-preview', // Reasoning Task
     contents: prompt,
     config: {
       safetySettings: getSafetySettings(rating),
@@ -321,7 +328,7 @@ export const generateImagePrompt = async (
   
   if (storyFormat) {
       return {
-          positive: data.characterSheetPrompt, // Default main display
+          positive: data.characterSheetPrompt,
           negative: data.globalNegative,
           tech: data.technicalParams,
           storyPrompts: data.storyPanels,
@@ -349,9 +356,9 @@ export const generateVideoScript = async (
   comfyWorkflow?: ComfyWorkflow,
   aspectRatio?: string
 ): Promise<{ positive: string, negative: string, scenes: VideoScene[], tech?: TechnicalParams }> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
 
-  // Wan 2.1 / Video Specific Instructions
   let engineInstruction = "";
   if (engine === 'COMFY_UI') {
       if (comfyWorkflow === 'WAN_2_1_VIDEO') {
@@ -398,7 +405,7 @@ export const generateVideoScript = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Upgraded to Pro
+    model: 'gemini-3-pro-preview', // Reasoning Task
     contents: prompt,
     config: {
       safetySettings: getSafetySettings(rating),
@@ -429,11 +436,11 @@ export const generateVideoScript = async (
               properties: {
                 sceneNumber: { type: Type.INTEGER },
                 duration: { type: Type.STRING },
-                visualPrompt: { type: Type.STRING, description: "PURE VISUAL description. No dialogue text. Describe the subject, action, lighting, and camera." },
-                audioPrompt: { type: Type.STRING, description: "Combined instructions: 'Voiceover: [Script line]. SFX: [Sound effect]'." },
+                visualPrompt: { type: Type.STRING },
+                audioPrompt: { type: Type.STRING },
                 cameraAngle: { type: Type.STRING },
-                movement: { type: Type.STRING, description: "Specific camera move (e.g. 'Dolly In', 'Orbit')" },
-                script: { type: Type.STRING, description: "The spoken words for TTS." }
+                movement: { type: Type.STRING },
+                script: { type: Type.STRING }
               },
               required: ['sceneNumber', 'duration', 'visualPrompt', 'audioPrompt', 'cameraAngle', 'movement', 'script']
             }
@@ -458,10 +465,11 @@ export const generateSpeech = async (
   text: string,
   voiceName: VoiceName
 ): Promise<string> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash-preview-tts",
+    model: "gemini-2.5-flash-preview-tts", // Correct TTS model
     contents: [{ parts: [{ text: text }] }],
     config: {
       responseModalities: [Modality.AUDIO],
@@ -487,6 +495,7 @@ export const analyzeNicheStrategy = async (
   apiKey: string,
   niche: ContentNiche
 ): Promise<AIStrategyReport> => {
+  validateKey(apiKey);
   const ai = new GoogleGenAI({ apiKey });
 
   const prompt = `
@@ -503,7 +512,7 @@ export const analyzeNicheStrategy = async (
   `;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview', // Upgraded to Pro
+    model: 'gemini-3-pro-preview', // Reasoning Task
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
@@ -539,6 +548,7 @@ export const generatePromptFromImage = async (
     imageBase64: string,
     engine: AIEngine
 ): Promise<{ positive: string, negative: string, tech: TechnicalParams }> => {
+    validateKey(apiKey);
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -551,7 +561,7 @@ export const generatePromptFromImage = async (
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview', 
+        model: 'gemini-3-flash-preview', // Vision Task
         contents: {
             parts: [
                 { inlineData: { mimeType: 'image/png', data: imageBase64 } },
@@ -593,6 +603,7 @@ export const smartTranslate = async (
     text: string,
     targetLang: 'ID' | 'EN'
 ): Promise<TranslationResult> => {
+    validateKey(apiKey);
     const ai = new GoogleGenAI({ apiKey });
 
     const prompt = `
@@ -603,7 +614,7 @@ export const smartTranslate = async (
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3-flash-preview', // Simple Text Task
         contents: prompt,
         config: {
             responseMimeType: 'application/json',
@@ -621,11 +632,11 @@ export const smartTranslate = async (
     return JSON.parse(cleanJSON(response.text || "{}"));
 };
 
-// --- NEW: Generate Smart Caption ---
 export const generateSmartCaption = async (
     apiKey: string,
     title: string
 ): Promise<string> => {
+    validateKey(apiKey);
     const ai = new GoogleGenAI({ apiKey });
     
     const prompt = `
@@ -643,7 +654,7 @@ export const generateSmartCaption = async (
     `;
 
     const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3-flash-preview', // Creative writing
         contents: prompt
     });
 

@@ -7,6 +7,21 @@ import {
 import { ContentNiche, AIStrategyReport, NicheMetrics } from '../types';
 import { analyzeNicheStrategy } from '../services/geminiService';
 
+const niches: ContentNiche[] = [
+  'FINANCE_CRYPTO', 
+  'HORROR_SCARY', 
+  'TECH_FUTURISM', 
+  'MOTIVATION_BUSINESS', 
+  'FACTS_TRIVIA', 
+  'HEALTH_FITNESS', 
+  'HISTORY_MYSTERY', 
+  'TRAVEL_LUXURY', 
+  'ASMR_SATISFYING', 
+  'KIDS_EDUCATION', 
+  'HOBBY_INTERESTS', 
+  'GENERAL'
+];
+
 // --- MOCK DATA GENERATOR (Simulating Quant Data) ---
 // In a real app, this would come from YouTube Data API or similar.
 const getNicheMetrics = (niche: ContentNiche): NicheMetrics => {
@@ -65,16 +80,10 @@ const Strategy: React.FC = () => {
   const [metrics, setMetrics] = useState<NicheMetrics | null>(null);
   const [aiReport, setAiReport] = useState<AIStrategyReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [hasApiKey, setHasApiKey] = useState(false);
 
   // Helper to get API Key
   const getApiKey = () => localStorage.getItem('gemini_api_key') || '';
-
-  const niches: ContentNiche[] = [
-    'FINANCE_CRYPTO', 'TECH_FUTURISM', 'HORROR_SCARY', 
-    'MOTIVATION_BUSINESS', 'FACTS_TRIVIA', 'HEALTH_FITNESS', 
-    'HISTORY_MYSTERY', 'ASMR_SATISFYING', 'KIDS_EDUCATION',
-    'HOBBY_INTERESTS', 'TRAVEL_LUXURY', 'GENERAL'
-  ];
 
   const fetchStrategy = async (niche: ContentNiche) => {
     setLoading(true);
@@ -83,7 +92,7 @@ const Strategy: React.FC = () => {
     // 1. Get Static Metrics (Instant)
     setMetrics(getNicheMetrics(niche));
 
-    // 2. Get AI Analysis
+    // 2. Get AI Analysis (Only if Key exists)
     const apiKey = getApiKey();
     if (apiKey) {
       try {
@@ -92,17 +101,35 @@ const Strategy: React.FC = () => {
       } catch (error) {
         console.error(error);
       }
+    } else {
+        setAiReport(null); // Clear report if no key
     }
     setLoading(false);
   };
 
   useEffect(() => {
+    const key = getApiKey();
+    setHasApiKey(!!key);
     fetchStrategy('FINANCE_CRYPTO');
   }, []);
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-6">
+    <div className="h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-6 relative">
       
+      {/* API LOCK OVERLAY (Only blocks if user tries to interact deeply, but we allow viewing static data) */}
+      {!hasApiKey && (
+          <div className="absolute inset-0 z-50 backdrop-blur-sm bg-dark-950/40 flex items-center justify-center">
+             <div className="bg-dark-900 border border-dark-700 p-8 rounded-2xl shadow-2xl max-w-sm text-center">
+                 <AlertTriangle size={32} className="text-yellow-500 mx-auto mb-4" />
+                 <h3 className="text-xl font-bold text-white mb-2">Strategic Intelligence Locked</h3>
+                 <p className="text-sm text-gray-400 mb-6">Real-time market analysis requires active Neural Engine access.</p>
+                 <button disabled className="w-full py-2 bg-dark-800 text-gray-500 rounded-lg cursor-not-allowed text-sm font-bold border border-dark-700">
+                    Configure API Key
+                 </button>
+             </div>
+          </div>
+      )}
+
       {/* SIDEBAR: Niche Selector */}
       <div className="w-full lg:w-64 shrink-0 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-sm font-bold text-gray-400 uppercase mb-4 px-2">Select Market Niche</h3>
@@ -133,11 +160,6 @@ const Strategy: React.FC = () => {
             </h1>
             <p className="text-gray-400 text-sm">Real-time market intelligence and growth strategy.</p>
           </div>
-          {!getApiKey() && (
-             <div className="bg-red-900/20 text-red-400 border border-red-900/50 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
-                <AlertTriangle size={16} /> API Key Missing. AI Insights Disabled.
-             </div>
-          )}
         </div>
 
         {metrics && (
@@ -316,7 +338,7 @@ const Strategy: React.FC = () => {
                   </div>
                ) : (
                   <div className="text-center py-10 text-gray-500">
-                    <p>No report generated. Check API Key or try again.</p>
+                     <p>Connect API Key to unlock AI Insights.</p>
                   </div>
                )}
             </div>

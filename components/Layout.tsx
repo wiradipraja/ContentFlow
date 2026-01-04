@@ -81,7 +81,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, onTabChange }) => 
             <div className="w-full bg-dark-700/50 h-1 rounded-full overflow-hidden">
                 <div className="bg-brand-500 h-full w-[85%] rounded-full shadow-[0_0_10px_rgba(20,184,166,0.5)]"></div>
             </div>
-            <p className="text-[10px] text-gray-500 mt-2 font-mono">Gemini 1.5 Pro Latency: 45ms</p>
+            <p className="text-[10px] text-gray-500 mt-2 font-mono">Gemini 3.0 Ready</p>
           </div>
         </div>
       </aside>
