@@ -2,28 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, Activity, DollarSign, Target, 
   Brain, AlertTriangle, Zap, BarChart3, PieChart,
-  ChevronRight, Loader2
+  ChevronRight, Lock, Unlock, Loader2
 } from 'lucide-react';
 import { ContentNiche, AIStrategyReport, NicheMetrics } from '../types';
 import { analyzeNicheStrategy } from '../services/geminiService';
 
-// DEFINISI VARIABEL 'niches' (PENTING AGAR TIDAK BLANK)
-const niches: ContentNiche[] = [
-  'FINANCE_CRYPTO', 
-  'HORROR_SCARY', 
-  'TECH_FUTURISM', 
-  'MOTIVATION_BUSINESS', 
-  'FACTS_TRIVIA', 
-  'HEALTH_FITNESS', 
-  'HISTORY_MYSTERY', 
-  'TRAVEL_LUXURY', 
-  'ASMR_SATISFYING', 
-  'KIDS_EDUCATION', 
-  'HOBBY_INTERESTS', 
-  'GENERAL'
-];
-
-// --- MOCK DATA GENERATOR ---
+// --- MOCK DATA GENERATOR (Simulating Quant Data) ---
+// In a real app, this would come from YouTube Data API or similar.
 const getNicheMetrics = (niche: ContentNiche): NicheMetrics => {
   const baseMetrics: Record<ContentNiche, Partial<NicheMetrics>> = {
     'FINANCE_CRYPTO': { avgRpm: 25.50, difficultyScore: 85, viralityScore: 60, marketSaturation: 'HIGH' },
@@ -40,25 +25,36 @@ const getNicheMetrics = (niche: ContentNiche): NicheMetrics => {
     'HOBBY_INTERESTS': { avgRpm: 8.50, difficultyScore: 45, viralityScore: 65, marketSaturation: 'MEDIUM' },
   };
 
-  const selected = baseMetrics[niche] || baseMetrics['GENERAL'];
+  const selected = baseMetrics[niche];
   
+  // Generate random trend data based on niche "vibe"
   const weeklyTrend = Array.from({ length: 7 }, (_, i) => ({
     day: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
     interest: Math.floor(Math.random() * 40) + (selected.viralityScore || 50)
   }));
 
-  let demographics = [
-    { label: '18-24', value: 30 },
-    { label: '25-34', value: 40 },
-    { label: '35-44', value: 20 },
-    { label: '45+', value: 10 },
-  ];
+  // Generate demographics
+  let demographics = [];
+  if (niche === 'KIDS_EDUCATION') {
+      demographics = [
+        { label: 'Parents (25-34)', value: 60 },
+        { label: 'Parents (35-44)', value: 30 },
+        { label: 'Others', value: 10 },
+      ];
+  } else {
+      demographics = [
+        { label: '18-24', value: Math.floor(Math.random() * 30) + 10 },
+        { label: '25-34', value: Math.floor(Math.random() * 40) + 20 },
+        { label: '35-44', value: Math.floor(Math.random() * 20) + 5 },
+        { label: '45+', value: Math.floor(Math.random() * 10) + 5 },
+      ];
+  }
 
   return {
     difficultyScore: selected.difficultyScore || 50,
     viralityScore: selected.viralityScore || 50,
     avgRpm: selected.avgRpm || 1.0,
-    marketSaturation: (selected.marketSaturation as any) || 'MEDIUM',
+    marketSaturation: selected.marketSaturation as any || 'MEDIUM',
     demographics,
     weeklyTrend
   };
@@ -69,15 +65,22 @@ const Strategy: React.FC = () => {
   const [metrics, setMetrics] = useState<NicheMetrics | null>(null);
   const [aiReport, setAiReport] = useState<AIStrategyReport | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(false);
 
+  // Helper to get API Key
   const getApiKey = () => localStorage.getItem('gemini_api_key') || '';
+
+  const niches: ContentNiche[] = [
+    'FINANCE_CRYPTO', 'TECH_FUTURISM', 'HORROR_SCARY', 
+    'MOTIVATION_BUSINESS', 'FACTS_TRIVIA', 'HEALTH_FITNESS', 
+    'HISTORY_MYSTERY', 'ASMR_SATISFYING', 'KIDS_EDUCATION',
+    'HOBBY_INTERESTS', 'TRAVEL_LUXURY', 'GENERAL'
+  ];
 
   const fetchStrategy = async (niche: ContentNiche) => {
     setLoading(true);
     setSelectedNiche(niche);
     
-    // 1. Get Static Metrics
+    // 1. Get Static Metrics (Instant)
     setMetrics(getNicheMetrics(niche));
 
     // 2. Get AI Analysis
@@ -89,34 +92,18 @@ const Strategy: React.FC = () => {
       } catch (error) {
         console.error(error);
       }
-    } else {
-        setAiReport(null); 
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    const key = getApiKey();
-    setHasApiKey(!!key);
     fetchStrategy('FINANCE_CRYPTO');
   }, []);
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-6 relative">
-      {!hasApiKey && (
-          <div className="absolute inset-0 z-50 backdrop-blur-sm bg-dark-950/40 flex items-center justify-center">
-             <div className="bg-dark-900 border border-dark-700 p-8 rounded-2xl shadow-2xl max-w-sm text-center">
-                 <AlertTriangle size={32} className="text-yellow-500 mx-auto mb-4" />
-                 <h3 className="text-xl font-bold text-white mb-2">Strategic Intelligence Locked</h3>
-                 <p className="text-sm text-gray-400 mb-6">Real-time market analysis requires active Neural Engine access.</p>
-                 <button disabled className="w-full py-2 bg-dark-800 text-gray-500 rounded-lg cursor-not-allowed text-sm font-bold border border-dark-700">
-                    Configure API Key
-                 </button>
-             </div>
-          </div>
-      )}
-
-      {/* SIDEBAR */}
+    <div className="h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-6">
+      
+      {/* SIDEBAR: Niche Selector */}
       <div className="w-full lg:w-64 shrink-0 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
         <h3 className="text-sm font-bold text-gray-400 uppercase mb-4 px-2">Select Market Niche</h3>
         {niches.map((niche) => (
@@ -135,8 +122,10 @@ const Strategy: React.FC = () => {
         ))}
       </div>
 
-      {/* MAIN DASHBOARD */}
+      {/* MAIN CONTENT: Analytics Dashboard */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
+        
+        {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3">
@@ -144,51 +133,78 @@ const Strategy: React.FC = () => {
             </h1>
             <p className="text-gray-400 text-sm">Real-time market intelligence and growth strategy.</p>
           </div>
+          {!getApiKey() && (
+             <div className="bg-red-900/20 text-red-400 border border-red-900/50 px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                <AlertTriangle size={16} /> API Key Missing. AI Insights Disabled.
+             </div>
+          )}
         </div>
 
         {metrics && (
           <>
+            {/* KPI CARDS */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               <div className="bg-dark-800 p-5 rounded-xl border border-dark-700">
                 <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-bold uppercase">
-                  <DollarSign size={14} className="text-green-400" /> Est. RPM
+                  <DollarSign size={14} className="text-green-400" /> Est. RPM (per 1k)
                 </div>
                 <div className="text-2xl font-bold text-white">${metrics.avgRpm.toFixed(2)}</div>
+                <div className="w-full bg-dark-700 h-1.5 mt-3 rounded-full overflow-hidden">
+                  <div className="bg-green-500 h-full" style={{ width: `${(metrics.avgRpm / 30) * 100}%` }}></div>
+                </div>
               </div>
+
               <div className="bg-dark-800 p-5 rounded-xl border border-dark-700">
                 <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-bold uppercase">
-                  <Activity size={14} className="text-blue-400" /> Virality
+                  <Activity size={14} className="text-blue-400" /> Virality Score
                 </div>
                 <div className="text-2xl font-bold text-white">{metrics.viralityScore}/100</div>
+                <div className="w-full bg-dark-700 h-1.5 mt-3 rounded-full overflow-hidden">
+                  <div className="bg-blue-500 h-full" style={{ width: `${metrics.viralityScore}%` }}></div>
+                </div>
               </div>
+
               <div className="bg-dark-800 p-5 rounded-xl border border-dark-700">
                 <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-bold uppercase">
-                  <Target size={14} className="text-red-400" /> Saturation
+                  <Target size={14} className="text-red-400" /> Competition
                 </div>
                 <div className="text-2xl font-bold text-white">{metrics.marketSaturation}</div>
+                <div className="text-xs text-gray-500 mt-1">Difficulty: {metrics.difficultyScore}/100</div>
               </div>
+
                <div className="bg-dark-800 p-5 rounded-xl border border-dark-700">
                 <div className="flex items-center gap-2 mb-2 text-gray-400 text-xs font-bold uppercase">
-                  <TrendingUp size={14} className="text-yellow-400" /> Trend
+                  <TrendingUp size={14} className="text-yellow-400" /> 7-Day Trend
                 </div>
-                <div className="h-12 w-full mt-2 flex items-end justify-between gap-1">
-                   {metrics.weeklyTrend.map((d, i) => (
+                <div className="h-12 w-full mt-2">
+                   {/* Mini Trend Chart Visualization */}
+                   <div className="flex items-end justify-between h-full gap-1">
+                      {metrics.weeklyTrend.map((d, i) => (
                         <div key={i} className="bg-yellow-500/50 w-full rounded-t-sm" style={{ height: `${d.interest}%` }}></div>
-                   ))}
+                      ))}
+                   </div>
                 </div>
               </div>
             </div>
 
+            {/* CHARTS ROW */}
             <div className="grid lg:grid-cols-3 gap-6 mb-8">
                <div className="lg:col-span-2 bg-dark-800 p-6 rounded-xl border border-dark-700">
                   <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
-                    <BarChart3 size={18} className="text-brand-400" /> Interest Trend
+                    <BarChart3 size={18} className="text-brand-400" /> Audience Interest Over Time
                   </h3>
-                  <div className="h-48 w-full flex items-end justify-between gap-2 px-4 relative">
+                  <div className="h-64 w-full flex items-end justify-between gap-2 px-4 relative">
                      {metrics.weeklyTrend.map((item, idx) => (
                         <div key={idx} className="flex flex-col items-center justify-end h-full w-full group relative">
-                            <div className="w-full bg-brand-500/50 rounded-t-md" style={{ height: `${item.interest}%` }}></div>
+                            <div 
+                              className="w-full bg-gradient-to-t from-brand-900/50 to-brand-500/50 rounded-t-md transition-all hover:bg-brand-500/80" 
+                              style={{ height: `${item.interest}%` }}
+                            ></div>
                             <span className="text-xs text-gray-500 mt-2">{item.day}</span>
+                            {/* Tooltip */}
+                            <div className="absolute bottom-full mb-2 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap z-10">
+                                Interest: {item.interest}
+                            </div>
                         </div>
                      ))}
                   </div>
@@ -196,7 +212,7 @@ const Strategy: React.FC = () => {
 
                <div className="bg-dark-800 p-6 rounded-xl border border-dark-700">
                   <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
-                    <PieChart size={18} className="text-purple-400" /> Demographics
+                    <PieChart size={18} className="text-purple-400" /> Age Demographics
                   </h3>
                   <div className="space-y-4">
                      {metrics.demographics.map((demo, idx) => (
@@ -214,7 +230,12 @@ const Strategy: React.FC = () => {
                </div>
             </div>
 
+            {/* AI STRATEGIC REPORT */}
             <div className="bg-gradient-to-br from-dark-800 to-dark-900 rounded-xl border border-brand-500/30 p-8 relative overflow-hidden">
+               <div className="absolute top-0 right-0 p-4 opacity-10">
+                  <Brain size={120} className="text-brand-500" />
+               </div>
+               
                <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3 relative z-10">
                   <Brain size={24} className="text-brand-400" /> Gemini Strategy Report
                </h2>
@@ -226,11 +247,14 @@ const Strategy: React.FC = () => {
                   </div>
                ) : aiReport ? (
                   <div className="grid lg:grid-cols-2 gap-8 relative z-10">
+                     
+                     {/* LEFT: Analysis */}
                      <div className="space-y-6">
                         <div className="bg-dark-900/50 p-4 rounded-lg border border-dark-600">
                            <h4 className="text-brand-400 text-xs font-bold uppercase mb-2">Executive Summary</h4>
                            <p className="text-gray-200 text-sm leading-relaxed">{aiReport.executiveSummary}</p>
                         </div>
+                        
                         <div>
                            <h4 className="text-gray-300 text-sm font-bold uppercase mb-3 flex items-center gap-2">
                              <Target size={14} /> Target Persona
@@ -239,7 +263,22 @@ const Strategy: React.FC = () => {
                              "{aiReport.targetAudiencePersona}"
                            </p>
                         </div>
+
+                        <div>
+                           <h4 className="text-gray-300 text-sm font-bold uppercase mb-3 flex items-center gap-2">
+                             <Zap size={14} /> Viral Hooks (First 3s)
+                           </h4>
+                           <ul className="space-y-2">
+                              {aiReport.viralHooks.map((hook, i) => (
+                                <li key={i} className="text-sm text-white bg-dark-700/50 px-3 py-2 rounded-lg border border-dark-600/50">
+                                   🎥 {hook}
+                                </li>
+                              ))}
+                           </ul>
+                        </div>
                      </div>
+
+                     {/* RIGHT: SWOT & Content Pillars */}
                      <div className="space-y-6">
                         <div className="grid grid-cols-2 gap-4">
                            <div className="bg-green-900/20 border border-green-500/20 p-4 rounded-lg">
@@ -255,11 +294,29 @@ const Strategy: React.FC = () => {
                               </ul>
                            </div>
                         </div>
+
+                        <div>
+                           <h4 className="text-gray-300 text-sm font-bold uppercase mb-3 flex items-center gap-2">
+                             <TrendingUp size={14} /> Top Content Pillars
+                           </h4>
+                           <div className="flex flex-wrap gap-2">
+                              {aiReport.contentPillars.map((pillar, i) => (
+                                 <span key={i} className="text-xs font-medium bg-brand-900/30 text-brand-300 border border-brand-500/20 px-3 py-1 rounded-full">
+                                    #{pillar}
+                                 </span>
+                              ))}
+                           </div>
+                        </div>
+
+                        <div className="bg-dark-900/50 p-4 rounded-lg border border-dark-600">
+                           <h4 className="text-yellow-400 text-xs font-bold uppercase mb-2">Monetization Strategy</h4>
+                           <p className="text-gray-300 text-xs leading-relaxed">{aiReport.monetizationStrategy}</p>
+                        </div>
                      </div>
                   </div>
                ) : (
                   <div className="text-center py-10 text-gray-500">
-                     <p>Connect API Key to unlock AI Insights.</p>
+                    <p>No report generated. Check API Key or try again.</p>
                   </div>
                )}
             </div>

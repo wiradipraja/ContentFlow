@@ -1,13 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Wand2, Loader2, Image as ImageIcon, Video, Upload, User, Copy, Check, Trash2, Cpu, Palette, Sliders, Shield, ShieldAlert, EyeOff, Hash, Mic, Play, Download, ScanEye, Languages, ArrowRightLeft, BookOpen, BrainCircuit, Lightbulb, ArrowRight, Smartphone, Monitor, Users, Move, Layers, MessageCircle, Music, Sparkles, FileText, Zap, Speech, Waves, Clapperboard, BookHeart, Lock, Settings } from 'lucide-react';
+import { Wand2, Loader2, Image as ImageIcon, Video, Upload, User, Copy, Check, Trash2, Cpu, Palette, Sliders, Shield, ShieldAlert, EyeOff, Hash, Mic, Play, Download, ScanEye, Languages, ArrowRightLeft, BookOpen, BrainCircuit, Lightbulb, ArrowRight, Smartphone, Monitor, Users, Move, Layers, MessageCircle, Music, Sparkles, FileText, Zap, Speech, Waves, Clapperboard, BookHeart } from 'lucide-react';
 import { fileToGenerativePart, analyzeCharacterImage, generateImagePrompt, generateVideoScript, generateSpeech, generatePromptFromImage, smartTranslate, generateViralIdeas } from '../services/geminiService';
 import { PromptResult, CharacterProfile, AIEngine, ArtStyle, ContentRating, ContentNiche, VoiceName, TranslationResult, ComfyWorkflow, ScriptIdea, ImageMode, StoryFormat, ContentFormat } from '../types';
 
-interface GeneratorProps {
-  // Pass navigate function via props if using router, or use window.location if handled by App.tsx activeTab
-  // Assuming App.tsx passes activeTab setter or we can't switch tabs easily without it.
-  // For now, we'll display a visual lock.
-}
+interface GeneratorProps {}
 
 // --- PRESET FORMATS (OPENART STYLE) ---
 const FORMAT_PRESETS: { id: ContentFormat, label: string, icon: any, desc: string, color: string }[] = [
@@ -59,9 +55,6 @@ const IMAGE_STYLES: { label: string; value: ArtStyle }[] = [
 ];
 
 const Generator: React.FC<GeneratorProps> = () => {
-  // API Key Check
-  const [hasApiKey, setHasApiKey] = useState(false);
-
   // Mode State
   const [activeMode, setActiveMode] = useState<'IMAGE' | 'VIDEO' | 'ANALYSIS' | 'IDEATION'>('VIDEO');
   
@@ -116,11 +109,6 @@ const Generator: React.FC<GeneratorProps> = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const getApiKey = () => localStorage.getItem('gemini_api_key') || '';
-
-  // Check for API Key on mount
-  useEffect(() => {
-    setHasApiKey(!!getApiKey());
-  }, []);
 
   // Auto-switch style when mode changes to prevent crashes
   useEffect(() => {
@@ -188,7 +176,7 @@ const Generator: React.FC<GeneratorProps> = () => {
     const file = e.target.files?.[0];
     if (!file) return;
     const apiKey = getApiKey();
-    if (!apiKey) { alert("API Key Missing"); return; }
+    if (!apiKey) { alert("Please save your API Key in Settings first!"); return; }
     
     if (type === 'CHARACTER') {
         setAnalyzingChar(true);
@@ -225,7 +213,7 @@ const Generator: React.FC<GeneratorProps> = () => {
 
   const handleGenerate = async () => {
     const apiKey = getApiKey();
-    if (!apiKey) { alert("API Key Missing"); return; }
+    if (!apiKey) { alert("Please save your API Key in Settings first!"); return; }
     setLoading(true); setResult(null);
     try {
       if (activeMode === 'ANALYSIS') {
@@ -306,30 +294,10 @@ const Generator: React.FC<GeneratorProps> = () => {
   };
 
   return (
-    <div className="max-w-[1600px] mx-auto pb-20 relative">
+    <div className="max-w-[1600px] mx-auto pb-20">
       
-      {/* --- API KEY LOCK SCREEN --- */}
-      {!hasApiKey && (
-          <div className="absolute inset-0 z-50 backdrop-blur-md bg-dark-950/60 flex flex-col items-center justify-center rounded-3xl border border-white/5 animate-in fade-in duration-700">
-             <div className="p-8 bg-dark-900 border border-dark-700 rounded-3xl shadow-2xl max-w-md text-center">
-                <div className="w-16 h-16 bg-red-500/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-red-500">
-                   <Lock size={32} />
-                </div>
-                <h2 className="text-2xl font-black text-white mb-2">Neural Engine Locked</h2>
-                <p className="text-gray-400 mb-6">To prevent unauthorized usage, the AI Core is inactive. Please configure your personal Gemini API Key to proceed.</p>
-                <div className="p-3 bg-dark-800 rounded-xl border border-dark-700 mb-6 flex items-center justify-center gap-2">
-                   <Cpu size={16} className="text-brand-500" />
-                   <span className="text-xs font-mono text-gray-300">Requires: Gemini 3.0 Pro / Flash</span>
-                </div>
-                <button disabled className="w-full py-3 bg-brand-600/50 text-white/50 font-bold rounded-xl cursor-not-allowed">
-                   Go to Config (Use Sidebar)
-                </button>
-             </div>
-          </div>
-      )}
-
       {/* 1. CREATIVE FORMATS GRID (OpenArt Style) */}
-      <div className={`mb-12 ${!hasApiKey ? 'blur-sm pointer-events-none' : ''}`}>
+      <div className="mb-12">
         <h2 className="text-3xl font-black text-white mb-2 tracking-tight">What would you like to create?</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-6">
             {FORMAT_PRESETS.map((format) => (
@@ -355,7 +323,7 @@ const Generator: React.FC<GeneratorProps> = () => {
         </div>
       </div>
 
-      <div className={`mb-8 flex items-end justify-between border-b border-white/5 pb-4 ${!hasApiKey ? 'blur-sm pointer-events-none' : ''}`}>
+      <div className="mb-8 flex items-end justify-between border-b border-white/5 pb-4">
         <div className="flex gap-4">
             {['VIDEO', 'IMAGE', 'IDEATION', 'ANALYSIS'].map((mode) => (
              <button
@@ -377,7 +345,7 @@ const Generator: React.FC<GeneratorProps> = () => {
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 xl:grid-cols-12 gap-8 ${!hasApiKey ? 'blur-sm pointer-events-none' : ''}`}>
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
         
         {/* LEFT COLUMN: Input Configuration */}
         <div className="xl:col-span-4 space-y-6">
